@@ -22,6 +22,10 @@ logger = get_logger(__name__)
 # Module-level Gemini client — created once per process
 _client: genai.Client | None = None
 
+# Fix #7: GenerateContentConfig built once (SYSTEM_PROMPT and temperature are
+# runtime constants — no need to reconstruct on every call).
+_gemini_config: types.GenerateContentConfig | None = None
+
 
 def _get_client() -> genai.Client:
     global _client  # noqa: PLW0603
@@ -30,6 +34,17 @@ def _get_client() -> genai.Client:
         _client = genai.Client(api_key=settings.google_api_key)
         logger.info("Gemini client initialised (model=%s)", settings.gemini_model)
     return _client
+
+
+def _get_config() -> types.GenerateContentConfig:
+    global _gemini_config  # noqa: PLW0603
+    if _gemini_config is None:
+        settings = get_settings()
+        _gemini_config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=settings.gemini_temperature,
+        )
+    return _gemini_config
 
 
 async def stream_generate_v2(prompt: str) -> AsyncIterator[str]:
@@ -43,11 +58,7 @@ async def stream_generate_v2(prompt: str) -> AsyncIterator[str]:
     """
     settings = get_settings()
     client = _get_client()
-
-    config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_PROMPT,
-        temperature=settings.gemini_temperature,
-    )
+    config = _get_config()
 
     logger.debug("Starting Gemini stream (prompt_len=%d)", len(prompt))
 

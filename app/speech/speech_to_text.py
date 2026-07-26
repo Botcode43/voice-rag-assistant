@@ -3,6 +3,10 @@ app/speech/speech_to_text.py — Speech-to-text using the SpeechRecognition libr
 
 Audio bytes (WAV/WebM/MP3) are converted to text using Google's free STT API.
 This runs synchronously in a thread pool since SpeechRecognition is blocking.
+
+Fix #9: sr.Recognizer() is a module-level singleton — no object construction overhead per call.
+Fix #2: adjust_for_ambient_noise(duration=0.3) removed — saved a guaranteed 300 ms per voice request.
+         Browser MediaRecorder captures clean audio and does not need ambient calibration.
 """
 
 from __future__ import annotations
@@ -17,6 +21,9 @@ import speech_recognition as sr
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Module-level singleton — Recognizer holds no per-call state
+_recogniser = sr.Recognizer()
 
 
 async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/wav") -> str:
@@ -39,8 +46,6 @@ async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/wav") 
 
 def _transcribe_sync(audio_bytes: bytes, content_type: str) -> str:
     """Blocking transcription — intended to be run in a thread pool."""
-    recogniser = sr.Recognizer()
-
     # Write to a temp file since SpeechRecognition reads from file paths / AudioFile
     suffix = _suffix_for(content_type)
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -49,10 +54,9 @@ def _transcribe_sync(audio_bytes: bytes, content_type: str) -> str:
 
     try:
         with sr.AudioFile(tmp_path) as source:
-            recogniser.adjust_for_ambient_noise(source, duration=0.3)
-            audio_data = recogniser.record(source)
+            audio_data = _recogniser.record(source)
 
-        text = recogniser.recognize_google(audio_data)
+        text = _recogniser.recognize_google(audio_data)
         logger.info("STT transcribed: %r", text[:100])
         return text
     except sr.UnknownValueError as exc:

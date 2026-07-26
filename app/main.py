@@ -61,6 +61,12 @@ async def lifespan(app: FastAPI):
     yield  # Application runs here
 
     logger.info("Voice RAG Assistant shutting down …")
+    # Close the persistent Ollama HTTP client gracefully
+    try:
+        from app.rag.embeddings import close_http_client
+        await close_http_client()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Error closing HTTP client (non-fatal): %s", exc)
 
 
 # ── Application factory ────────────────────────────────────────────────────────

@@ -29,7 +29,6 @@ from app.llm.prompts import FALLBACK_ANSWER, build_rag_prompt
 from app.memory.memory import session_memory
 from app.rag.vector_store import collection_name_for
 from app.services.tts_service import stream_tts_for_text_stream
-from app.speech.edge_tts import synthesise_text
 from app.utils.helpers import make_llm_cache_key
 from app.utils.logger import get_logger
 
@@ -91,23 +90,30 @@ async def run_rag_stream(
 
     if cached_answer:
         logger.info("LLM cache hit for key=%s", cache_key[:12])
-        # Replay cached answer as a stream (word-grouped for natural feel)
-        words = cached_answer.split()
-        chunk_size = 5
-        for i in range(0, len(words), chunk_size):
-            chunk = " ".join(words[i : i + chunk_size])
-            if i + chunk_size < len(words):
-                chunk += " "
-            yield _sse({"type": "text", "content": chunk})
-            await asyncio.sleep(0.02)  # Simulate streaming latency
 
-        # TTS for cached answer
+        # Fix #8: removed asyncio.sleep(0.02) — was adding ~400–800 ms of fake latency.
+        # Fix #6: use stream_tts_for_text_stream so TTS runs sentence-by-sentence in
+        #          parallel (same strategy as the live path), instead of blocking on the
+        #          full answer string — saves ~1–3 s before first audio byte on cache hits.
+        async def _cached_text_stream() -> AsyncIterator[str]:
+            words = cached_answer.split()
+            chunk_size = 5
+            for i in range(0, len(words), chunk_size):
+                chunk = " ".join(words[i : i + chunk_size])
+                if i + chunk_size < len(words):
+                    chunk += " "
+                yield chunk
+
         try:
-            audio_bytes = await synthesise_text(cached_answer)
-            audio_b64 = base64.b64encode(audio_bytes).decode()
-            yield _sse({"type": "audio", "audio_b64": audio_b64})
+            async for text_token, audio_bytes in stream_tts_for_text_stream(_cached_text_stream()):
+                if text_token:
+                    yield _sse({"type": "text", "content": text_token})
+                if audio_bytes:
+                    audio_b64 = base64.b64encode(audio_bytes).decode()
+                    yield _sse({"type": "audio", "audio_b64": audio_b64})
         except Exception as exc:  # noqa: BLE001
             logger.warning("TTS failed for cached answer: %s", exc)
+
         yield _sse({"type": "done"})
 
         # Store in session memory

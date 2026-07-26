@@ -18,10 +18,27 @@ logger = get_logger(__name__)
 # Single tokenizer instance for the process
 _TOKENIZER = tiktoken.get_encoding("cl100k_base")
 
+# Fix #4: splitter built once — chunk_size/overlap come from settings (a cached
+# singleton) so the config never changes. No reason to reconstruct per upload.
+_splitter: RecursiveCharacterTextSplitter | None = None
+
 
 def _token_len(text: str) -> int:
     """Token-aware length function for the text splitter."""
     return len(_TOKENIZER.encode(text, disallowed_special=()))
+
+
+def _get_splitter() -> RecursiveCharacterTextSplitter:
+    global _splitter  # noqa: PLW0603
+    if _splitter is None:
+        settings = get_settings()
+        _splitter = RecursiveCharacterTextSplitter(
+            chunk_size=settings.chunk_size,
+            chunk_overlap=settings.chunk_overlap,
+            length_function=_token_len,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
+    return _splitter
 
 
 def chunk_pages(pages: list[str]) -> list[str]:
@@ -37,13 +54,7 @@ def chunk_pages(pages: list[str]) -> list[str]:
     settings = get_settings()
     full_text = "\n\n".join(p for p in pages if p.strip())
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-        length_function=_token_len,
-        separators=["\n\n", "\n", ". ", " ", ""],
-    )
-
+    splitter = _get_splitter()
     chunks: list[str] = splitter.split_text(full_text)
     logger.info(
         "Chunked document: total_chunks=%d chunk_size=%d chunk_overlap=%d",
