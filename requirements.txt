@@ -1,0 +1,46 @@
+# ── Backend ────────────────────────────────────────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-multipart==0.0.12
+
+# ── Agent orchestration ────────────────────────────────────────────────────────
+langgraph==0.2.34
+langchain-core==0.3.10
+langchain-text-splitters==0.3.0
+
+# ── LLM (Gemini) ───────────────────────────────────────────────────────────────
+google-genai==1.16.0
+
+# ── Embeddings (nomic-embed-text via Ollama HTTP API) ─────────────────────────
+httpx==0.27.2
+
+# ── Vector DB + hybrid search ──────────────────────────────────────────────────
+qdrant-client[fastembed]==1.12.1
+fastembed==0.4.1
+
+# ── PDF parsing ────────────────────────────────────────────────────────────────
+pymupdf==1.24.11
+
+# ── Speech-to-text ─────────────────────────────────────────────────────────────
+SpeechRecognition==3.10.4
+pyaudio==0.2.14
+
+# ── Text-to-speech ─────────────────────────────────────────────────────────────
+edge-tts==7.2.8
+
+# ── Tokenization (for token-aware chunking) ────────────────────────────────────
+tiktoken==0.8.0
+
+# ── Frontend ───────────────────────────────────────────────────────────────────
+streamlit==1.39.0
+audio-recorder-streamlit==0.0.10
+
+# ── Utils ──────────────────────────────────────────────────────────────────────
+tenacity==8.5.0
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+pytest==8.3.3
+pytest-asyncio==0.24.0

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Uploaded PDFs and generated data
+uploads/*
+!uploads/.gitkeep
+
+# Vector store / Qdrant local storage
+qdrant_storage/
+vector_store/
+
+# Cache
+.cache/
+*.cache
+diskcache/
+
+# Logs
+*.log
+logs/
+
+# Streamlit
+.streamlit/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
